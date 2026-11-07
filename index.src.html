@@ -737,6 +737,33 @@ function drawHits(dt){
   }
 }
 
+function drawReady(){
+  if (!G.playing) return;
+  var first = 1e9;
+  if (G.side[0].length) first = Math.min(first, G.side[0][0].t);
+  if (G.side[1].length) first = Math.min(first, G.side[1][0].t);
+  if (first > 1e8) return;
+  var left = first - now();
+  if (left < -0.05) return;                 // 第一个音符已到，提示收工
+  var a = Math.min(1, left / 0.7);
+  var jy = judgeY();
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(230,233,245,.5)';
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = 'rgba(230,233,245,.88)';
+  ctx.font = '600 17px -apple-system,"PingFang SC",sans-serif';
+  // 整体压在折痕上方，避免判定线从字形中间划过去
+  ctx.fillText('准　备', SW / 2, jy - 36);
+  ctx.shadowBlur = 0;
+  ctx.font = '9px -apple-system,"PingFang SC",sans-serif';
+  ctx.fillStyle = 'rgba(230,233,245,.42)';
+  ctx.fillText('第一拍即将抵达折痕', SW / 2, jy - 15);
+  ctx.restore();
+}
+
 function drawHud(){
   var jy = judgeY();
   if (G.combo >= 2){
@@ -811,6 +838,7 @@ function loop(ms){
   drawNotes();
   drawHits(dt);
   drawJudgeLine();
+  drawReady();
   drawHud();
   drawFail();
 }

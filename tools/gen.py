@@ -20,9 +20,10 @@ BEAT = 60.0 / BPM
 STEP = BEAT / 4.0          # 16 分音符
 BAR = BEAT * 4
 
-# 段落：前奏 4 小节热身，A/B/C 各 8 小节，尾奏 4 小节
-SEC = [('前奏', 4), ('A', 8), ('B', 8), ('C', 8), ('尾奏', 4)]
+# 段落：前奏 2 小节热身（再长玩家会以为卡住），A/B/C 共 26 小节，尾奏 4 小节
+SEC = [('前奏', 2), ('A', 10), ('B', 8), ('C', 8), ('尾奏', 4)]
 TOTAL_BARS = sum(n for _, n in SEC)
+CHART_FROM, CHART_TO = 2, TOTAL_BARS - 4    # 有音符的小节区间
 
 # 和弦进行：Am - F - C - G（vi-IV-I-V），每小节一个
 CHORDS = [
@@ -142,14 +143,14 @@ def derive(tracks):
 
     # ── 轻折：一拍一个，落在 kick/主旋律的强拍上，左右交替 ──
     easy = []
-    for bar in range(4, TOTAL_BARS - 4):
+    for bar in range(CHART_FROM, CHART_TO):
         for b in range(4):
             easy.append({'t': t_of(bar, b * 4), 'src': 'beat'})
     charts['easy'] = assign_sides(easy, max_run=2, double_rate=0.0)
 
     # ── 深折：正拍 + 反拍贝斯，强拍上按比例出双押 ──
     normal = []
-    for bar in range(4, TOTAL_BARS - 4):
+    for bar in range(CHART_FROM, CHART_TO):
         for b in range(4):
             normal.append({'t': t_of(bar, b * 4), 'src': 'beat'})
             normal.append({'t': t_of(bar, b * 4 + 2), 'src': 'off8'})
@@ -157,7 +158,7 @@ def derive(tracks):
 
     # ── 极限折：16 分连打 + 更密的双押 ──
     hard = []
-    for bar in range(4, TOTAL_BARS - 4):
+    for bar in range(CHART_FROM, CHART_TO):
         for b in range(4):
             hard.append({'t': t_of(bar, b * 4), 'src': 'beat'})
             hard.append({'t': t_of(bar, b * 4 + 2), 'src': 'off8'})

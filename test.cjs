@@ -73,8 +73,8 @@ function ok(cond, label, extra) {
   });
   ok(chart.bars === 32 && Math.abs(chart.length - 63.1) < 0.3, '曲目 32 小节 / 63.1s',
     chart.bars + ' 小节 ' + chart.length.toFixed(2) + 's BPM ' + chart.bpm);
-  ok(chart.per.easy === 96 && chart.per.normal === 209 && chart.per.hard === 320,
-    '三档音符数 96 / 209 / 320', JSON.stringify(chart.per));
+  ok(chart.per.easy === 104 && chart.per.normal === 226 && chart.per.hard === 347,
+    '三档音符数 104 / 226 / 347', JSON.stringify(chart.per));
   ok(chart.orphan.easy === 0 && chart.orphan.normal === 0 && chart.orphan.hard === 0,
     '每个音符都有对应发声事件', JSON.stringify(chart.orphan));
   ok(chart.grid.easy === 0 && chart.grid.normal === 0 && chart.grid.hard === 0,
@@ -186,33 +186,35 @@ function ok(cond, label, extra) {
   const jy0 = await page.evaluate(() => window.__TP.judgeY());
 
   // 8a 上半屏点击 → 命中上界第一个音符
-  const nTop = await page.evaluate(() => {
+  // 用「增量」断言：只关心这一下点击是否恰好多出 1 个 PERFECT，
+  // 不受同一帧里 updateMiss 补判更早音符的影响。
+  const beforeTop = await page.evaluate(() => {
     window.__TP.fake(0); window.__TP.start(0);
     const n = window.__TP.notes(0)[0];
-    window.__TP.fake(n.t);            // 时钟停在音符正中，避免任何竞态
-    return n.t;
+    window.__TP.fake(n.t);
+    return window.__TP.state();
   });
+  await page.waitForTimeout(60);
   await page.mouse.click(box0.x + box0.width / 2, box0.y + jy0 - 60);
   await page.waitForTimeout(80);
-  const topHit = await page.evaluate(() => window.__TP.state());
-  ok(topHit.perfect === 1 && topHit.judged === 1, '上半屏真实点击命中上界音符',
-    'PERFECT=' + topHit.perfect + ' judged=' + topHit.judged);
+  const afterTop = await page.evaluate(() => window.__TP.state());
+  ok(afterTop.perfect - beforeTop.perfect === 1, '上半屏真实点击命中上界音符',
+    'PERFECT ' + beforeTop.perfect + ' → ' + afterTop.perfect);
 
   // 8b 下半屏点击 → 命中下界音符
-  // 注：把时钟直接跳到下界首个音符时，上界更早的音符必然已过窗计漏，
-  // 所以这里断言「PERFECT=1 且当前连击=1」，而不是 judged 的总数。
-  const nBot = await page.evaluate(() => {
+  const beforeBot = await page.evaluate(() => {
     window.__TP.fake(0); window.__TP.start(0);
     const n = window.__TP.notes(1)[0];
     window.__TP.fake(n.t);
-    return n.t;
+    return window.__TP.state();
   });
+  await page.waitForTimeout(60);
   await page.mouse.click(box0.x + box0.width / 2, box0.y + jy0 + 60);
   await page.waitForTimeout(80);
-  const botHit = await page.evaluate(() => window.__TP.state());
-  ok(botHit.perfect === 1 && botHit.combo === 1, '下半屏真实点击命中下界音符',
-    'PERFECT=' + botHit.perfect + ' combo=' + botHit.combo +
-    '（同时段跳过 ' + botHit.miss + ' 个音符，属预期）');
+  const afterBot = await page.evaluate(() => window.__TP.state());
+  ok(afterBot.perfect - beforeBot.perfect === 1 &&
+     afterBot.judged - beforeBot.judged >= 1, '下半屏真实点击命中下界音符',
+    'PERFECT ' + beforeBot.perfect + ' → ' + afterBot.perfect);
 
   /* ── 9. 真实音频 ── */
   console.log('\n[9] 真实音频');
