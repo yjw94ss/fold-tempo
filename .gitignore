@@ -1,0 +1,6 @@
+shot-*.png
+crop-*.png
+dbg.cjs
+shot.cjs
+.DS_Store
+node_modules/

@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>FOLD TEMPO · 合拍</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{
+    height:100%;overflow:hidden;background:#0a0a0c;color:#e6e9f5;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+    overscroll-behavior:none;touch-action:none;user-select:none;-webkit-user-select:none;
+  }
+  #app{position:fixed;inset:0;display:flex;flex-direction:column}
+  #cv{display:block;width:100%;flex:1;touch-action:none}
+  #hud{
+    position:absolute;left:0;right:0;top:0;
+    padding:calc(8px + env(safe-area-inset-top)) 16px 0;
+    display:flex;justify-content:space-between;align-items:flex-start;
+    pointer-events:none;font-size:9px;letter-spacing:.22em;color:#6b6b78;transition:opacity .4s;
+  }
+  #hud b{color:#cfd2de;font-weight:600;letter-spacing:.16em;font-size:10px}
+  #hud .right{text-align:right}
+  #hud .acc{font-variant-numeric:tabular-nums;letter-spacing:.04em;font-size:13px;color:#b6ff2e;
+            font-weight:600;margin-top:2px}
+  #sr{height:2px;background:rgba(255,255,255,.06);margin-top:7px;position:relative;z-index:5}
+  #sr i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7c5cff,#e6e9f5,#b6ff2e);
+        box-shadow:0 0 8px rgba(182,255,46,.55)}
+
+  /* ── 面板 ── */
+  #veil{
+    position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+    padding:calc(20px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom));
+    background:radial-gradient(circle at 50% 38%,rgba(20,20,26,.91),rgba(4,4,6,.975));
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    transition:opacity .3s;overflow-y:auto;
+  }
+  #veil.hide{opacity:0;pointer-events:none}
+  .card{width:100%;max-width:420px;text-align:center;animation:pop .36s cubic-bezier(.2,1.2,.4,1) both}
+  @keyframes pop{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+
+  .kicker{font-size:9px;letter-spacing:.46em;color:#5b5b68;margin-bottom:14px}
+  .card h1{font-size:40px;font-weight:700;letter-spacing:.16em;line-height:1}
+  .card h1 .w{color:#8f74ff;text-shadow:0 0 34px rgba(124,92,255,.6)}
+  .card h1 .c{color:#b6ff2e;text-shadow:0 0 34px rgba(182,255,46,.45)}
+  .card h1+.en{font-size:8.5px;letter-spacing:.62em;color:#5b5b68;margin-top:11px}
+  .sub{font-size:11.5px;letter-spacing:.14em;color:#8b8b99;margin-top:18px;line-height:1.95}
+
+  .rules{margin:20px 0 6px;padding:14px 16px;border-radius:14px;text-align:left;
+         background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));
+         border:1px solid rgba(255,255,255,.07)}
+  .rules div{display:grid;grid-template-columns:52px 1fr;gap:10px;margin:9px 0;
+             font-size:11px;line-height:1.72;color:#a2a2b0}
+  .rules div b{color:#a892ff;font-weight:600;letter-spacing:.06em}
+  .rules div:nth-child(2n) b{color:#b6ff2e}
+  .rules em{font-style:normal;color:#e6e9f5}
+
+  .diffs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0 4px}
+  .diff{
+    padding:11px 4px 9px;border-radius:12px;cursor:pointer;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+    transition:.18s;
+  }
+  .diff .n{font-size:12.5px;letter-spacing:.1em;color:#cdd0dc}
+  .diff .d{font-size:8.5px;letter-spacing:.16em;color:#5f5f6c;margin-top:5px}
+  .diff.on{background:linear-gradient(180deg,rgba(124,92,255,.26),rgba(182,255,46,.08));
+           border-color:rgba(143,116,255,.62);box-shadow:0 0 22px rgba(124,92,255,.26)}
+  .diff.on .n{color:#fff}
+  .diff .best{font-size:8px;letter-spacing:.12em;color:#b6ff2e;margin-top:4px;height:10px}
+
+  .cal{margin:16px 0 2px;padding:12px 14px;border-radius:12px;
+       background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);text-align:left}
+  .cal .t{font-size:9.5px;letter-spacing:.16em;color:#75757f;display:flex;justify-content:space-between}
+  .cal .t span{color:#b6ff2e;font-variant-numeric:tabular-nums}
+  .cal input{width:100%;margin-top:9px;-webkit-appearance:none;height:20px;background:transparent}
+  .cal input::-webkit-slider-runnable-track{height:2px;background:rgba(255,255,255,.14);border-radius:2px}
+  .cal input::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:#b6ff2e;margin-top:-7px;box-shadow:0 0 12px rgba(182,255,46,.7)}
+
+  button{font-family:inherit;border:0;cursor:pointer}
+  .go{
+    width:100%;margin-top:16px;padding:15px;border-radius:13px;
+    font-size:13px;letter-spacing:.32em;font-weight:700;color:#0b0b0e;
+    background:linear-gradient(96deg,#c9b6ff,#e6e9f5 42%,#b6ff2e 78%,#8f74ff);
+    box-shadow:0 8px 30px rgba(124,92,255,.3);
+  }
+  .go:active{transform:translateY(1px)}
+  .row{display:flex;gap:9px;margin-top:12px}
+  .row button{
+    flex:1;padding:13px 6px;border-radius:12px;font-size:11.5px;letter-spacing:.16em;
+    color:#b6b6c4;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);
+  }
+  .row button.prime{color:#0b0b0e;background:linear-gradient(96deg,#b6ff2e,#e6e9f5);border:0;font-weight:700}
+  .row button:active{transform:translateY(1px)}
+
+  /* ── 结算 ── */
+  .rank{font-size:76px;font-weight:800;line-height:.92;letter-spacing:.02em;
+        font-variant-numeric:tabular-nums}
+  .rank.S{color:#b6ff2e;text-shadow:0 0 46px rgba(182,255,46,.6)}
+  .rank.A{color:#e6e9f5;text-shadow:0 0 40px rgba(230,233,245,.5)}
+  .rank.B{color:#8f74ff;text-shadow:0 0 38px rgba(124,92,255,.55)}
+  .rank.C,.rank.D{color:#7e7e8c}
+  .bigacc{font-size:30px;font-weight:700;letter-spacing:.04em;font-variant-numeric:tabular-nums;
+          margin-top:8px}
+  .grid2{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:16px 0 4px}
+  .grid2 div{background:rgba(255,255,255,.04);border-radius:10px;padding:9px 2px}
+  .grid2 b{display:block;font-size:15px;font-variant-numeric:tabular-nums;color:#e6e9f5}
+  .grid2 i{display:block;font-style:normal;font-size:8px;letter-spacing:.14em;color:#5f5f6c;margin-top:3px}
+  .grid2 .p b{color:#b6ff2e}.grid2 .g b{color:#8f74ff}.grid2 .m b{color:#ff4d6d}
+  .fc{margin-top:12px;font-size:8.5px;letter-spacing:.2em;color:#5b5b68}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div>
+      <b id="hName">合 拍</b>
+      <div style="margin-top:5px;letter-spacing:.26em" id="hDiff">轻折</div>
+    </div>
+    <div class="right">
+      <div id="hAcc" class="acc">100.00%</div>
+      <div style="margin-top:4px;letter-spacing:.22em" id="hProg">0 / 0</div>
+    </div>
+  </div>
+  <canvas id="cv"></canvas>
+  <div id="sr"><i></i></div>
+</div>
+<div id="veil"></div>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   FOLD TEMPO · 合拍
+   折痕就是判定线。上界音符自上而下落入折痕，下界音符自下而上顶到折痕，
+   两条同时抵达 = 一次「合折」双押。
+   音乐与谱面同源（tools/gen.py 生成），因此音画不会错位。
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 曲目数据：由 tools/build.py 注入 ── */
+var SONG = /*__SONG__*/null;
+
+var LEVELS = [
+  {key:'easy',   name:'轻 折', tag:'EASY',   desc:'一拍一击'},
+  {key:'normal', name:'深 折', tag:'NORMAL', desc:'八分推进'},
+  {key:'hard',   name:'极 折', tag:'HARD',   desc:'十六分连打'}
+];
+
+/* ── 判定窗口（秒） ── */
+var W_PERFECT = 0.050;
+var W_GOOD    = 0.100;
+var W_MISS    = 0.140;
+var LEAD      = 1.25;      // 提前量：音符提前多久出现在画面里
+
+/* ══════════════ 画布 ══════════════ */
+var cv = document.getElementById('cv');
+var ctx = cv.getContext('2d');
+var SW = 0, SH = 0, DPR = 1;
+
+function resize(){
+  DPR = Math.min(2.5, window.devicePixelRatio || 1);
+  var r = cv.getBoundingClientRect();
+  SW = Math.max(240, Math.round(r.width));
+  SH = Math.max(240, Math.round(r.height));
+  cv.width = Math.round(SW * DPR);
+  cv.height = Math.round(SH * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', function(){ resize(); });
+window.addEventListener('orientationchange', function(){ setTimeout(resize, 120); });
+
+/* ══════════════ 音频 ══════════════ */
+var AC = null, master = null, drumBus = null, toneBus = null, dly = null, dlyFb = null, comp = null;
+var an = null;           // 波形分析：用于验证合成器真的在出声
+var noise = null;
+var t0 = 0;              // 曲目零点（AudioContext 时间）
+var started = false;
+var nextIdx = 0;
+var events = [];         // 合并后按时间排序的全部发声事件
+var schedTimer = null;
+
+function initAudio(){
+  if (AC) return true;
+  var Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) return false;
+  try { AC = new Ctor(); } catch(e){ return false; }
+
+  comp = AC.createDynamicsCompressor();
+  comp.threshold.value = -16; comp.knee.value = 22; comp.ratio.value = 3.2;
+  comp.attack.value = 0.004; comp.release.value = 0.20;
+
+  master = AC.createGain(); master.gain.value = 0.72;
+  master.connect(comp);
+  an = AC.createAnalyser(); an.fftSize = 2048;
+  comp.connect(an); an.connect(AC.destination);
+
+  drumBus = AC.createGain(); drumBus.gain.value = 0.95; drumBus.connect(master);
+  toneBus = AC.createGain(); toneBus.gain.value = 0.80; toneBus.connect(master);
+
+  // 附点八分延迟，给琶音与主旋律一点空间
+  dly = AC.createDelay(1.0);
+  dly.delayTime.value = SONG.beat * 0.75;
+  dlyFb = AC.createGain(); dlyFb.gain.value = 0.26;
+  var dlp = AC.createBiquadFilter(); dlp.type = 'lowpass'; dlp.frequency.value = 2600;
+  var dwet = AC.createGain(); dwet.gain.value = 0.20;
+  dly.connect(dlp); dlp.connect(dlyFb); dlyFb.connect(dly); dlp.connect(dwet); dwet.connect(toneBus);
+
+  // 白噪声缓冲（军鼓、踩镲共用）
+  var n = Math.floor(AC.sampleRate * 0.5);
+  noise = AC.createBuffer(1, n, AC.sampleRate);
+  var d = noise.getChannelData(0);
+  var seed = 12345;
+  for (var i = 0; i < n; i++){
+    seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF;
+    d[i] = (seed / 0x3FFFFFFF) - 1;
+  }
+  return true;
+}
+
+function noiseSrc(){
+  var s = AC.createBufferSource();
+  s.buffer = noise; s.loop = true;
+  return s;
+}
+
+/* ── 各乐器 ── */
+function vKick(t, v){
+  var o = AC.createOscillator(), g = AC.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(150, t);
+  o.frequency.exponentialRampToValueAtTime(46, t + 0.10);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.98 * v, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.30);
+  o.connect(g); g.connect(drumBus);
+  o.start(t); o.stop(t + 0.32);
+}
+function vSnare(t, v){
+  var s = noiseSrc(), hp = AC.createBiquadFilter(), g = AC.createGain();
+  hp.type = 'highpass'; hp.frequency.value = 1150;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.42 * v, t + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
+  s.connect(hp); hp.connect(g); g.connect(drumBus);
+  s.start(t); s.stop(t + 0.19);
+  var o = AC.createOscillator(), og = AC.createGain();
+  o.type = 'triangle'; o.frequency.setValueAtTime(196, t);
+  o.frequency.exponentialRampToValueAtTime(150, t + 0.09);
+  og.gain.setValueAtTime(0.10 * v, t);
+  og.gain.exponentialRampToValueAtTime(0.0001, t + 0.10);
+  o.connect(og); og.connect(drumBus);
+  o.start(t); o.stop(t + 0.11);
+}
+function vHat(t, v, decay){
+  var s = noiseSrc(), hp = AC.createBiquadFilter(), g = AC.createGain();
+  hp.type = 'highpass'; hp.frequency.value = decay > 0.1 ? 6200 : 8400;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.20 * v, t + 0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+  s.connect(hp); hp.connect(g); g.connect(drumBus);
+  s.start(t); s.stop(t + decay + 0.02);
+}
+function vBass(t, midi, v){
+  var o = AC.createOscillator(), lp = AC.createBiquadFilter(), g = AC.createGain();
+  o.type = 'sawtooth'; o.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+  lp.type = 'lowpass'; lp.Q.value = 6;
+  lp.frequency.setValueAtTime(880, t);
+  lp.frequency.exponentialRampToValueAtTime(240, t + 0.19);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.36 * v, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.23);
+  o.connect(lp); lp.connect(g); g.connect(toneBus);
+  o.start(t); o.stop(t + 0.25);
+}
+function vArp(t, midi, v){
+  var o = AC.createOscillator(), lp = AC.createBiquadFilter(), g = AC.createGain();
+  o.type = 'triangle'; o.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+  lp.type = 'lowpass'; lp.frequency.value = 4200;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.13 * v * 2, t + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
+  o.connect(lp); lp.connect(g); g.connect(toneBus); g.connect(dly);
+  o.start(t); o.stop(t + 0.19);
+}
+function vLead(t, midi, v){
+  var f = 440 * Math.pow(2, (midi - 69) / 12);
+  var g = AC.createGain(), lp = AC.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 2500; lp.Q.value = 1.2;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.115 * v * 2, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.30);
+  for (var i = 0; i < 2; i++){
+    var o = AC.createOscillator();
+    o.type = 'square';
+    o.frequency.value = f * (i ? 1.004 : 1);
+    o.connect(lp); o.start(t); o.stop(t + 0.32);
+  }
+  lp.connect(g); g.connect(toneBus); g.connect(dly);
+}
+function vPad(t, midi, v){
+  var f = 440 * Math.pow(2, (midi - 69) / 12);
+  var g = AC.createGain(), lp = AC.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 1000;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.035 * v * 2.4, t + 0.14);
+  g.gain.linearRampToValueAtTime(0.022 * v * 2.4, t + 0.34);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.62);
+  for (var i = 0; i < 2; i++){
+    var o = AC.createOscillator();
+    o.type = 'triangle';
+    o.frequency.value = f * (i ? 1.006 : 0.996);
+    o.connect(lp); o.start(t); o.stop(t + 0.64);
+  }
+  lp.connect(g); g.connect(toneBus);
+}
+
+var INST = {
+  kick:  function(t, m, v){ vKick(t, v); },
+  snare: function(t, m, v){ vSnare(t, v); },
+  hat:   function(t, m, v){ vHat(t, v, 0.035); },
+  openhat:function(t, m, v){ vHat(t, v, 0.19); },
+  bass:  function(t, m, v){ vBass(t, m, v); },
+  arp:   function(t, m, v){ vArp(t, m, v); },
+  lead:  function(t, m, v){ vLead(t, m, v); },
+  pad:   function(t, m, v){ vPad(t, m, v); }
+};
+
+function buildEvents(){
+  events = [];
+  for (var k in SONG.tracks){
+    var fn = INST[k];
+    if (!fn) continue;
+    var arr = SONG.tracks[k];
+    for (var i = 0; i < arr.length; i++){
+      events.push({t: arr[i][0], m: arr[i][1], v: arr[i][2], f: fn});
+    }
+  }
+  events.sort(function(a, b){ return a.t - b.t; });
+}
+
+function scheduler(){
+  if (!AC || !started) return;
+  var horizon = AC.currentTime + 0.14;
+  while (nextIdx < events.length){
+    var e = events[nextIdx];
+    var at = t0 + e.t;
+    if (at > horizon) break;
+    if (at < AC.currentTime - 0.05){ nextIdx++; continue; }   // 落后太多直接丢弃
+    e.f(at, e.m, e.v);
+    nextIdx++;
+  }
+}
+
+/* ══════════════ 状态 ══════════════ */
+var G = {
+  diff: 0,
+  side: [[], []],       // 每侧音符（按时间排序）
+  ptr: [0, 0],          // 漏击检测指针
+  total: 0, judged: 0,
+  perfect: 0, good: 0, miss: 0,
+  combo: 0, maxCombo: 0,
+  playing: false, over: false,
+  hits: [],
+  flash: 0,
+  comboPulse: 0,
+  lastJudge: null,
+  startAt: 0,
+  FAKE: null,           // 非 null 时用假时钟（仅 #dev，供自动化测试）
+  fail: false
+};
+var endTok = 0;     // 结算面板的世代号：重开一局即作废旧的那次延迟弹出
+
+var PAL = {
+  up: {a:'#7c5cff', b:'#cbb9ff', glow:'rgba(124,92,255,'},
+  dn: {a:'#b6ff2e', b:'#e9ffb0', glow:'rgba(182,255,46,'}
+};
+var SILVER = '#e6e9f5';
+var MISSCOL = '#ff4d6d';
+
+function now(){
+  if (G.FAKE !== null) return G.FAKE;
+  if (!AC || !started) return 0;
+  return AC.currentTime - t0 + (SAVE.offset / 1000);
+}
+
+/* ══════════════ 存档 ══════════════ */
+var SAVEKEY = 'foldtempo.save.v1';
+var SAVE = {best:{}, offset:0};
+(function(){
+  try {
+    var raw = localStorage.getItem(SAVEKEY);
+    if (raw){
+      var o = JSON.parse(raw);
+      if (o && typeof o === 'object'){
+        if (o.best) SAVE.best = o.best;
+        if (typeof o.offset === 'number') SAVE.offset = o.offset;
+      }
+    }
+  } catch(e){}
+})();
+function persist(){
+  try { localStorage.setItem(SAVEKEY, JSON.stringify(SAVE)); } catch(e){}
+}
+
+/* ══════════════ 谱面装载 ══════════════ */
+function loadChart(diff){
+  var c = SONG.charts[LEVELS[diff].key];
+  var a = [], b = [];
+  for (var i = 0; i < c.length; i++){
+    var n = {t: c[i][0], side: c[i][1], judged: false, res: -1, w: 0};
+    (n.side === 0 ? a : b).push(n);
+  }
+  G.side = [a, b];
+  G.ptr = [0, 0];
+  G.total = c.length;
+  G.judged = 0; G.perfect = 0; G.good = 0; G.miss = 0;
+  G.combo = 0; G.maxCombo = 0;
+  G.hits = []; G.over = false; G.fail = false;
+  G.lastJudge = null;
+  G.diff = diff;
+  // 每根音符的宽度做确定性变化，纯视觉，不影响判定
+  for (var s = 0; s < 2; s++){
+    for (var j = 0; j < G.side[s].length; j++){
+      G.side[s][j].w = 0.44 + ((j * 37 + s * 11) % 40) / 100;
+    }
+  }
+  document.getElementById('hDiff').textContent = LEVELS[diff].name;
+}
+
+/* ══════════════ 判定 ══════════════ */
+function updateMiss(){
+  var t = now();
+  for (var s = 0; s < 2; s++){
+    var arr = G.side[s], p = G.ptr[s];
+    while (p < arr.length){
+      var n = arr[p];
+      if (!n.judged && t - n.t <= W_MISS) break;
+      if (!n.judged){ n.judged = true; doJudge(n, 3, 999); }
+      p++;
+    }
+    G.ptr[s] = p;
+  }
+}
+
+function doJudge(n, res, dt){
+  n.res = res;
+  G.judged++;
+  if (res === 0){ G.perfect++; G.combo++; }
+  else if (res === 1){ G.good++; G.combo++; }
+  else { G.miss++; G.combo = 0; }
+  if (G.combo > G.maxCombo) G.maxCombo = G.combo;
+  G.lastJudge = {
+    txt: res === 0 ? 'PERFECT' : res === 1 ? 'GOOD' : 'MISS',
+    side: n.side, at: performance.now() / 1000,
+    col: res === 0 ? SILVER : res === 1 ? '#8f74ff' : MISSCOL
+  };
+  G.comboPulse = 1;
+  if (res !== 3){
+    G.hits.push({side: n.side, t: 0, big: res === 0});
+    G.flash = Math.min(1, G.flash + (res === 0 ? 0.34 : 0.18));
+  }
+  if (G.judged >= G.total) endSong();
+}
+
+function tap(side){
+  if (!G.playing || G.over) return null;
+  var t = now();
+  var arr = G.side[side];
+  var best = -1, bd = 1e9;
+  for (var i = G.ptr[side]; i < arr.length; i++){
+    var n = arr[i];
+    var d = n.t - t;
+    if (d > W_MISS) break;
+    if (n.judged) continue;
+    if (d > -W_MISS && Math.abs(d) < bd){ bd = Math.abs(d); best = i; }
+  }
+  if (best < 0) return null;                 // 空击：不计分、不罚
+  var note = arr[best];
+  note.judged = true;
+  var res = bd <= W_PERFECT ? 0 : bd <= W_GOOD ? 1 : 3;
+  doJudge(note, res, bd);
+  return {res: res, dt: bd};
+}
+
+/* ══════════════ 流程 ══════════════ */
+function startGame(diff){
+  endTok++;                       // 作废上一局尚未弹出的结算面板
+  loadChart(diff);
+  hideVeil();
+  G.playing = true; G.over = false;
+  document.getElementById('hud').style.opacity = '1';
+
+  if (G.FAKE !== null) return;          // 假时钟模式由测试驱动，不碰音频
+
+  if (!initAudio()){ G.fail = true; return; }
+  if (AC.state === 'suspended') AC.resume();
+  if (!events.length) buildEvents();
+  nextIdx = 0;
+  t0 = AC.currentTime + 0.45;           // 起手留预热
+  started = true;
+  if (schedTimer) clearInterval(schedTimer);
+  schedTimer = setInterval(scheduler, 25);
+  scheduler();
+}
+
+function endSong(){
+  if (G.over) return;
+  G.over = true; G.playing = false;
+  if (schedTimer){ clearInterval(schedTimer); schedTimer = null; }
+  started = false;
+  // 延迟弹结算，给最后一击的余韵留时间；但玩家若在这 0.6 秒内重开或返回，
+  // 旧结算必须作废，否则会盖在新一局画面上（token 机制）。
+  var tok = ++endTok;
+  setTimeout(function(){ if (tok === endTok) showResult(); }, 620);
+}
+
+function accuracy(){
+  var got = G.perfect + G.good * 0.55;
+  return G.total ? got / G.total : 0;
+}
+function rankOf(a){
+  if (a >= 0.96) return 'S';
+  if (a >= 0.90) return 'A';
+  if (a >= 0.80) return 'B';
+  if (a >= 0.65) return 'C';
+  return 'D';
+}
+
+/* ══════════════ 渲染 ══════════════ */
+function judgeY(){ return Math.round(SH * 0.5); }
+
+/* 节拍相位 0..1：用于让画面跟拍呼吸 */
+function beatPhase(){
+  var t = now() + 0.45;                  // 与音频起点对齐，视觉不抢在声音前面
+  if (t < 0) return 0;
+  var b = t / SONG.beat;
+  return b - Math.floor(b);
+}
+
+function drawBg(){
+  var jy = judgeY();
+
+  // 铬灰底：竖向拉出金属丝的冷光
+  var g = ctx.createLinearGradient(0, 0, 0, SH);
+  g.addColorStop(0, '#131318');
+  g.addColorStop(0.46, '#0a0a0d');
+  g.addColorStop(0.54, '#0a0a0d');
+  g.addColorStop(1, '#101017');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, SW, SH);
+
+  // 两界氛围光
+  var up = ctx.createRadialGradient(SW * .5, jy * .62, 8, SW * .5, jy * .62, Math.max(SW, SH) * .58);
+  up.addColorStop(0, 'rgba(124,92,255,.15)');
+  up.addColorStop(1, 'rgba(124,92,255,0)');
+  ctx.fillStyle = up; ctx.fillRect(0, 0, SW, jy);
+  var dn = ctx.createRadialGradient(SW * .5, jy + (SH - jy) * .55, 8, SW * .5, jy + (SH - jy) * .55, Math.max(SW, SH) * .58);
+  dn.addColorStop(0, 'rgba(182,255,46,.125)');
+  dn.addColorStop(1, 'rgba(182,255,46,0)');
+  ctx.fillStyle = dn; ctx.fillRect(0, jy, SW, SH - jy);
+
+  // 金属竖纹（极淡，制造材质感）
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  for (var x = 0; x < SW; x += 3){
+    ctx.fillStyle = (x % 9 === 0) ? 'rgba(255,255,255,.014)' : 'rgba(0,0,0,.05)';
+    ctx.fillRect(x, 0, 1, SH);
+  }
+  ctx.restore();
+
+  // 小节线：随拍子呼吸，越靠近折痕越亮
+  var bp = beatPhase();
+  var pulse = Math.pow(1 - bp, 3.2);
+  var barH = SONG.bar;
+  var tNow = now() + 0.45;
+  ctx.save();
+  for (var s = 0; s < 2; s++){
+    var dir = s === 0 ? -1 : 1;
+    var span = s === 0 ? jy : (SH - jy);
+    // 每拍一条细线，每小节一条粗线
+    for (var k = 1; k <= 4; k++){
+      var f = k / 4;
+      var y = jy + dir * span * (f * f * 0.96);
+      var isBar = (k === 4);
+      ctx.beginPath();
+      ctx.moveTo(0, y); ctx.lineTo(SW, y);
+      var baseA = isBar ? 0.085 : 0.042;
+      ctx.strokeStyle = s === 0
+        ? 'rgba(180,168,255,' + (baseA + 0.05 * pulse * (1 - f)) + ')'
+        : 'rgba(200,255,140,' + (baseA + 0.05 * pulse * (1 - f)) + ')';
+      ctx.lineWidth = isBar ? 1 : 0.7;
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  // 折痕两侧的柔和过渡带，避免上下两界硬切
+  var seam = ctx.createLinearGradient(0, jy - 44, 0, jy + 44);
+  seam.addColorStop(0, 'rgba(124,92,255,0)');
+  seam.addColorStop(.42, 'rgba(124,92,255,.09)');
+  seam.addColorStop(.5, 'rgba(230,233,245,.14)');
+  seam.addColorStop(.58, 'rgba(182,255,46,.09)');
+  seam.addColorStop(1, 'rgba(182,255,46,0)');
+  ctx.fillStyle = seam; ctx.fillRect(0, jy - 44, SW, 88);
+}
+
+function drawJudgeLine(){
+  var jy = judgeY(), bp = beatPhase();
+  var pulse = Math.pow(1 - bp, 4);
+
+  // 铬白主线，两端过渡到两界色
+  var lg = ctx.createLinearGradient(0, 0, SW, 0);
+  lg.addColorStop(0, 'rgba(124,92,255,.55)');
+  lg.addColorStop(.22, 'rgba(230,233,245,.9)');
+  lg.addColorStop(.5, 'rgba(255,255,255,' + (0.95 + pulse * 0.05) + ')');
+  lg.addColorStop(.78, 'rgba(230,233,245,.9)');
+  lg.addColorStop(1, 'rgba(182,255,46,.55)');
+  ctx.fillStyle = lg;
+  ctx.fillRect(0, jy - 1, SW, 2);
+
+  // 随拍扩散的细光晕
+  ctx.save();
+  ctx.globalAlpha = 0.30 + pulse * 0.45;
+  var hg = ctx.createLinearGradient(0, jy - 16, 0, jy + 16);
+  hg.addColorStop(0, 'rgba(124,92,255,0)');
+  hg.addColorStop(.5, 'rgba(255,255,255,.55)');
+  hg.addColorStop(1, 'rgba(182,255,46,0)');
+  ctx.fillStyle = hg; ctx.fillRect(0, jy - 16, SW, 32);
+  ctx.restore();
+
+  // 命中闪光
+  if (G.flash > 0){
+    ctx.save();
+    ctx.globalAlpha = G.flash * 0.55;
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.fillRect(0, jy - 2, SW, 4);
+    ctx.restore();
+  }
+
+  // 两侧标尺：离折痕留出 34px，避免和连击数字打架
+  ctx.save();
+  ctx.font = '8px -apple-system,"PingFang SC",sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(150,132,255,.62)';
+  ctx.fillText('上界', 12, jy - 34);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(182,255,46,.58)';
+  ctx.fillText('下界', SW - 12, jy + 34);
+  ctx.restore();
+}
+
+function drawNotes(){
+  var jy = judgeY(), t = now();
+  for (var s = 0; s < 2; s++){
+    var arr = G.side[s], pal = s === 0 ? PAL.up : PAL.dn;
+    for (var i = G.ptr[s]; i < arr.length; i++){
+      var n = arr[i];
+      var p = (n.t - t) / LEAD;                 // 1 = 刚出现，0 = 抵达折痕
+      if (p > 1.02) break;
+      // 越过折痕即消失：音符绝不能穿到另一界去
+      if (n.judged || p < -0.01) continue;
+      var span = s === 0 ? jy : (SH - jy);
+      var y = s === 0 ? Math.min(jy, jy - p * span) : Math.max(jy, jy + p * span);
+      var w = SW * n.w;
+      var h = Math.max(8, Math.min(14, SW * 0.018));
+      var x = (SW - w) / 2;
+      var near = Math.max(0, 1 - Math.abs(p) * 1.5);
+      // 出生淡入，避免在屏幕边缘硬生生蹦出来
+      var alpha = p > 0.88 ? Math.max(0, (1 - p) / 0.12) : 1;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      // 拖尾：一条细光带。做成窄条而不是宽梯形——窄到边缘看不出来，
+      // 才会被读成「光」而不是「一块形状」
+      if (p > 0.03){
+        var tl = Math.min(span * 0.26, 96) * Math.min(1, p * 1.4);
+        var ye = s === 0 ? y - tl : y + tl;
+        var tw = Math.max(2.5, h * 0.30);
+        var tg = ctx.createLinearGradient(0, y, 0, ye);
+        tg.addColorStop(0, pal.glow + (0.34 + near * 0.36) + ')');
+        tg.addColorStop(0.35, pal.glow + (0.14 + near * 0.14) + ')');
+        tg.addColorStop(1, pal.glow + '0)');
+        ctx.fillStyle = tg;
+        ctx.fillRect(SW / 2 - tw / 2, Math.min(y, ye), tw, Math.abs(ye - y));
+      }
+      // 主机身
+      ctx.shadowColor = pal.glow + (0.30 + near * 0.55) + ')';
+      ctx.shadowBlur = 8 + near * 20;
+      var g = ctx.createLinearGradient(x, y - h / 2, x + w, y + h / 2);
+      g.addColorStop(0, pal.a);
+      g.addColorStop(0.55, pal.b);
+      g.addColorStop(1, pal.a);
+      ctx.fillStyle = g;
+      var r = h / 2;
+      ctx.beginPath();
+      ctx.moveTo(x + r, y - r);
+      ctx.lineTo(x + w - r, y - r);
+      ctx.arc(x + w - r, y, r, -Math.PI / 2, Math.PI / 2);
+      ctx.lineTo(x + r, y + r);
+      ctx.arc(x + r, y, r, Math.PI / 2, -Math.PI / 2);
+      ctx.closePath();
+      ctx.fill();
+      // 顶面高光
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.28 + near * 0.42) + ')';
+      ctx.fillRect(x + r * 1.9, y - h * 0.17, w - r * 3.8, Math.max(1, h * 0.15));
+      ctx.restore();
+    }
+  }
+}
+
+function drawHits(dt){
+  var jy = judgeY();
+  for (var i = G.hits.length - 1; i >= 0; i--){
+    var h = G.hits[i];
+    h.t += dt;
+    var life = 0.40;
+    if (h.t > life){ G.hits.splice(i, 1); continue; }
+    var k = h.t / life;
+    var y = h.side === 0 ? jy - 2 : jy + 2;
+    var pal = h.side === 0 ? PAL.up : PAL.dn;
+    ctx.save();
+    ctx.globalAlpha = (1 - k) * 0.92;
+    ctx.strokeStyle = pal.a;
+    ctx.lineWidth = 2.6 * (1 - k) + 0.6;
+    var rx = SW * (0.06 + k * 0.26);
+    var ry = (h.big ? 15 : 9) * (1 + k * 1.7);
+    ctx.beginPath();
+    ctx.ellipse(SW / 2, y, rx, ry, 0, 0, 6.2832);
+    ctx.stroke();
+    if (h.big){
+      ctx.globalAlpha = (1 - k) * 0.45;
+      ctx.beginPath();
+      ctx.ellipse(SW / 2, y, rx * 0.55, ry * 0.55, 0, 0, 6.2832);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function drawHud(){
+  var jy = judgeY();
+  if (G.combo >= 2){
+    var pulse = 1 + G.comboPulse * 0.16;
+    ctx.save();
+    ctx.translate(30, jy);
+    ctx.scale(pulse, pulse);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = SILVER;
+    ctx.shadowColor = 'rgba(230,233,245,.5)'; ctx.shadowBlur = 12;
+    ctx.font = '700 20px -apple-system,"PingFang SC",sans-serif';
+    ctx.fillText(G.combo, 0, -1);
+    ctx.shadowBlur = 0;
+    ctx.font = '8px -apple-system,sans-serif';
+    ctx.fillStyle = 'rgba(230,233,245,.45)';
+    ctx.fillText('COMBO', 0, 11);
+    ctx.restore();
+  }
+  if (G.lastJudge){
+    var age = performance.now() / 1000 - G.lastJudge.at;
+    if (age < 0.42){
+      var a = 1 - age / 0.42;
+      var lj = G.lastJudge;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '600 12px -apple-system,"PingFang SC",sans-serif';
+      ctx.fillStyle = lj.col;
+      ctx.shadowColor = lj.col; ctx.shadowBlur = 10;
+      ctx.fillText(lj.txt, SW / 2, lj.side === 0 ? jy - 26 - age * 16 : jy + 26 + age * 16);
+      ctx.restore();
+    }
+  }
+}
+
+function drawFail(){
+  if (!G.fail) return;
+  var jy = judgeY();
+  ctx.save();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '600 13px -apple-system,"PingFang SC",sans-serif';
+  ctx.fillStyle = MISSCOL;
+  ctx.fillText('音频不可用，请检查设备音量', SW / 2, jy - 40);
+  ctx.font = '10px -apple-system,sans-serif';
+  ctx.fillStyle = 'rgba(230,233,245,.55)';
+  ctx.fillText('点任意处返回', SW / 2, jy - 18);
+  ctx.restore();
+}
+
+var lastT = 0;
+function loop(ms){
+  requestAnimationFrame(loop);      // 先排下一帧：单帧异常不该让整局卡死
+  if (!lastT) lastT = ms;
+  var dt = Math.min(0.05, (ms - lastT) / 1000);
+  lastT = ms;
+
+  G.flash = Math.max(0, G.flash - dt * 3.2);
+  G.comboPulse = Math.max(0, G.comboPulse - dt * 6);
+
+  if (G.playing){
+    updateMiss();
+    if (now() > SONG.length) endSong();
+    if (G.judged){
+      document.getElementById('hAcc').textContent = (accuracy() * 100).toFixed(2) + '%';
+      document.getElementById('hProg').textContent = G.judged + ' / ' + G.total;
+    }
+    var pr = Math.max(0, Math.min(1, now() / SONG.length));
+    document.querySelector('#sr i').style.width = (pr * 100).toFixed(2) + '%';
+  }
+
+  drawBg();
+  drawNotes();
+  drawHits(dt);
+  drawJudgeLine();
+  drawHud();
+  drawFail();
+}
+
+/* ══════════════ 面板 ══════════════ */
+var veil = document.getElementById('veil');
+function showVeil(html){ veil.innerHTML = html; veil.classList.remove('hide'); }
+function hideVeil(){ veil.classList.add('hide'); }
+
+function showStart(){
+  endTok++;                       // 回到菜单也作废待弹出的结算
+  G.playing = false; G.over = false;
+  document.getElementById('hud').style.opacity = '.32';
+  var rows = '';
+  for (var i = 0; i < LEVELS.length; i++){
+    var L = LEVELS[i], b = SAVE.best[L.key];
+    rows += '<div class="diff' + (i === G.diff ? ' on' : '') + '" data-i="' + i + '">'
+      + '<div class="n">' + L.name + '</div>'
+      + '<div class="d">' + L.tag + '</div>'
+      + '<div class="best">' + (b ? b.rank + ' · ' + (b.acc * 100).toFixed(1) + '%' : '') + '</div>'
+      + '</div>';
+  }
+  showVeil(''
+    + '<div class="card">'
+    + '<div class="kicker">OPPO FIND N5 · 折叠专供</div>'
+    + '<h1><span class="w">合</span><span class="c">拍</span></h1>'
+    + '<div class="en">FOLD TEMPO</div>'
+    + '<div class="sub">折痕就是判定线<br>上下两界的音符同时向它合拢</div>'
+    + '<div class="rules">'
+    + '<div><b>上界</b><span>音符自上而下落入折痕，点<em>上半屏</em>击打。</span></div>'
+    + '<div><b>下界</b><span>音符自下而上顶到折痕，点<em>下半屏</em>击打。</span></div>'
+    + '<div><b>合折</b><span>上下两条同时抵达时<em>双手同时点</em>，一次收两个连击。</span></div>'
+    + '<div><b>判定</b><span>误差 50ms 内 PERFECT，100ms 内 GOOD，超出则断连击。</span></div>'
+    + '<div><b>评级</b><span>按准确率结算 S / A / B / C / D，最好成绩记在本地。</span></div>'
+    + '</div>'
+    + '<div class="diffs">' + rows + '</div>'
+    + '<div class="cal">'
+    + '<div class="t">延迟校准（戴耳机建议 +20~+60）<span id="calv">'
+    + (SAVE.offset > 0 ? '+' : '') + SAVE.offset + ' ms</span></div>'
+    + '<input type="range" id="cal" min="-120" max="120" step="5" value="' + SAVE.offset + '">'
+    + '</div>'
+    + '<button class="go" id="btnGo">开 始 合 拍</button>'
+    + '</div>');
+
+  var diffs = veil.querySelectorAll('.diff');
+  for (var d = 0; d < diffs.length; d++){
+    diffs[d].addEventListener('click', function(e){
+      G.diff = parseInt(e.currentTarget.getAttribute('data-i'), 10);
+      showStart();
+    });
+  }
+  var cal = document.getElementById('cal');
+  cal.addEventListener('input', function(){
+    SAVE.offset = parseInt(cal.value, 10);
+    document.getElementById('calv').textContent = (SAVE.offset > 0 ? '+' : '') + SAVE.offset + ' ms';
+    persist();
+  });
+  document.getElementById('btnGo').addEventListener('click', function(){
+    startGame(G.diff);        // 必须在用户手势里创建 AudioContext
+  });
+}
+
+function showResult(){
+  var a = accuracy();
+  var rank = rankOf(a);
+  var key = LEVELS[G.diff].key;
+  var prev = SAVE.best[key];
+  var isNew = !prev || a > prev.acc;
+  if (isNew) SAVE.best[key] = {acc: a, rank: rank, combo: G.maxCombo};
+  persist();
+
+  showVeil(''
+    + '<div class="card">'
+    + '<div class="kicker">' + LEVELS[G.diff].name + ' · ' + (isNew ? '新纪录' : '完成') + '</div>'
+    + '<div class="rank ' + rank + '">' + rank + '</div>'
+    + '<div class="bigacc">' + (a * 100).toFixed(2) + '%</div>'
+    + '<div class="grid2">'
+    + '<div class="p"><b>' + G.perfect + '</b><i>PERFECT</i></div>'
+    + '<div class="g"><b>' + G.good + '</b><i>GOOD</i></div>'
+    + '<div class="m"><b>' + G.miss + '</b><i>MISS</i></div>'
+    + '<div><b>' + G.maxCombo + '</b><i>MAX COMBO</i></div>'
+    + '</div>'
+    + '<div class="row">'
+    + '<button class="prime" id="bAgain">再 来 一 次</button>'
+    + '<button id="bBack">返 回</button>'
+    + '</div>'
+    + '<div class="fc">共 ' + G.total + ' 个音符 · BPM ' + SONG.bpm + ' · '
+    + SONG.length.toFixed(1) + 's</div>'
+    + '</div>');
+
+  document.getElementById('bAgain').addEventListener('click', function(){ startGame(G.diff); });
+  document.getElementById('bBack').addEventListener('click', showStart);
+}
+
+/* ══════════════ 输入 ══════════════ */
+function pointerAt(x, y){
+  if (!G.playing) return;
+  if (G.fail){ G.fail = false; showStart(); return; }
+  var side = y < judgeY() ? 0 : 1;
+  var r = tap(side);
+  if (r === null) G.hits.push({side: side, t: 0.22, big: false});   // 空击只给一圈涟漪
+}
+
+cv.addEventListener('pointerdown', function(e){
+  e.preventDefault();
+  pointerAt(e.clientX, e.clientY);
+}, {passive:false});
+
+window.addEventListener('keydown', function(e){
+  if (!G.playing) return;
+  if (e.key === 'ArrowUp' || e.key === 'a' || e.key === 'A'){
+    pointerAt(SW / 2, judgeY() - 10); e.preventDefault();
+  } else if (e.key === 'ArrowDown' || e.key === 'l' || e.key === 'L'){
+    pointerAt(SW / 2, judgeY() + 10); e.preventDefault();
+  }
+});
+
+/* ══════════════ 开发钩子（仅 #dev） ══════════════ */
+if (location.hash === '#dev'){
+  window.__TP = {
+    song: function(){ return SONG; },
+    state: function(){
+      return {diff:G.diff, playing:G.playing, over:G.over, total:G.total, judged:G.judged,
+              perfect:G.perfect, good:G.good, miss:G.miss, combo:G.combo, maxCombo:G.maxCombo,
+              acc:accuracy(), rank:rankOf(accuracy()), t:now(), length:SONG.length,
+              fake:G.FAKE, audio:AC ? AC.state : 'none', sched:nextIdx, evs:events.length,
+              fail:G.fail, win:W_PERFECT};
+    },
+    /* 假时钟：让判定脱离真实音频，测试才能秒级跑完 63 秒的曲子 */
+    fake: function(t){ G.FAKE = (t === null ? null : t); return now(); },
+    seek: function(t){ G.FAKE = t; updateMiss(); return this.state(); },
+    tap: function(side){ return tap(side); },
+    tapAt: function(x, y){ pointerAt(x, y); },
+    start: function(d){ startGame(d); },
+    diff: function(d){ G.diff = d; },
+    notes: function(side){
+      return G.side[side].map(function(n){ return {t:n.t, w:n.w, judged:n.judged, res:n.res}; });
+    },
+    judgeY: function(){ return judgeY(); },
+    /* 自动全连：按谱面顺序逐个命中 */
+    auto: function(){
+      var all = [];
+      for (var s = 0; s < 2; s++)
+        for (var i = 0; i < G.side[s].length; i++)
+          all.push({t: G.side[s][i].t, s: s});
+      all.sort(function(a, b){ return a.t - b.t || a.s - b.s; });
+      G.FAKE = 0;
+      for (var k = 0; k < all.length; k++){
+        G.FAKE = all[k].t;
+        updateMiss();
+        tap(all[k].s);
+      }
+      G.FAKE = SONG.length + 0.1;
+      updateMiss();
+      return this.state();
+    },
+    /* 全漏：时钟直接推到结尾 */
+    skip: function(){
+      G.FAKE = SONG.length + 0.2;
+      updateMiss();
+      return this.state();
+    },
+    ui: function(){
+      return {veil: !veil.classList.contains('hide'), text: veil.innerText,
+              hud: document.getElementById('hud').innerText};
+    },
+    /* 实际输出波形能量：证明合成器真的在发声，而不只是调度计数在增加 */
+    rms: function(){
+      if (!an) return 0;
+      var buf = new Float32Array(an.fftSize);
+      an.getFloatTimeDomainData(buf);
+      var s = 0;
+      for (var i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+      return Math.sqrt(s / buf.length);
+    },
+    menu: function(){ showStart(); }
+  };
+}
+
+/* ══════════════ 启动 ══════════════ */
+resize();
+buildEvents();
+loadChart(0);
+showStart();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
